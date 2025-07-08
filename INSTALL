@@ -21,6 +21,50 @@ below.  The lack of an optional feature in a given package is not
 necessarily a bug.  More recommendations for GNU packages can be found
 in *note Makefile Conventions: (standards)Makefile Conventions.
 
+Apple Platforms (iOS/macOS/tvOS/watchOS)
+=========================================
+
+   For Apple platforms, you can use the pre-built XCFramework for easy
+integration into your iOS/macOS projects:
+
+Swift Package Manager
+---------------------
+
+   Add this repository as a Swift Package dependency in Xcode or add to
+your Package.swift:
+
+   dependencies: [
+       .package(url: "https://github.com/krzyzanowskim/oniguruma.git", from: "6.9.10")
+   ]
+
+Manual XCFramework Installation
+-------------------------------
+
+   1. Download the latest XCFramework from:
+      https://github.com/krzyzanowskim/oniguruma/releases
+
+   2. Extract the Oniguruma.xcframework.zip file
+
+   3. In Xcode, add the XCFramework to your project:
+      - Drag and drop Oniguruma.xcframework into your project
+      - Add it to your target's "Frameworks, Libraries, and Embedded Content"
+      - Set embed setting as appropriate for your use case
+
+   4. Import the library in your code:
+      #include <oniguruma.h>
+
+Building XCFramework from Source
+--------------------------------
+
+   To build the XCFramework yourself on macOS:
+
+   1. Ensure you have Xcode command line tools installed
+   2. Run: ./build_xcframework.sh
+
+   This will build for all Apple platforms (macOS, iOS, iOS Simulator, 
+   Mac Catalyst) and create the XCFramework, GitHub release, and 
+   Package.swift configuration automatically.
+
    The 'configure' shell script attempts to guess correct values for
 various system-dependent variables used during compilation.  It uses
 those values to create a 'Makefile' in each directory of the package.

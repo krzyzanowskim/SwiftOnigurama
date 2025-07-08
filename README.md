@@ -94,7 +94,39 @@ License
 Install
 -------
 
-### Case 1: Linux distribution packages
+### Case 1: Apple platforms (iOS/macOS) - Swift Package Manager
+
+For iOS and macOS projects, the easiest way is to use Swift Package Manager:
+
+1. In Xcode, go to File → Add Package Dependencies
+2. Enter the repository URL: `https://github.com/krzyzanowskim/oniguruma.git`
+3. Choose the version (6.9.10 or later)
+
+Or add to your `Package.swift`:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/krzyzanowskim/oniguruma.git", from: "6.9.10")
+]
+```
+
+### Case 2: Apple platforms (iOS/macOS) - Manual XCFramework
+
+1. Download the latest XCFramework from: https://github.com/krzyzanowskim/oniguruma/releases
+2. Extract `Oniguruma.xcframework.zip`
+3. In Xcode, drag and drop `Oniguruma.xcframework` into your project
+4. Add it to your target's "Frameworks, Libraries, and Embedded Content"
+5. Include in your code: `#include <oniguruma.h>`
+
+### Case 3: Build XCFramework from source (macOS only)
+
+```bash
+./build_xcframework.sh
+```
+
+This builds for all Apple platforms and automatically creates GitHub release and Package.swift.
+
+### Case 4: Linux distribution packages
 
    * Fedora:         `dnf install oniguruma-devel`
    * RHEL/CentOS:    `yum install oniguruma`
@@ -102,7 +134,7 @@ Install
    * Arch:           `pacman -S oniguruma`
    * openSUSE:       `zypper install oniguruma`
 
-### Case 2: Manual compilation on Linux, Unix, and Cygwin platform
+### Case 5: Manual compilation on Linux, Unix, and Cygwin platform
 
    1. autoreconf -vfi   (* case: configure script is not found.)
 
@@ -123,7 +155,7 @@ Install
 
 
 
-### Case 3: Windows 64/32bit platform (Visual Studio)
+### Case 6: Windows 64/32bit platform (Visual Studio)
 
    * build library
 

@@ -348,6 +348,12 @@ log "Package.swift created with checksum: \${CHECKSUM}"
 log "Cleaning up intermediate files..."
 rm -rf "${BUILD_DIR}" "${INSTALL_DIR}"
 
+# Cleanup build artifacts after successful release
+if [ $? -eq 0 ]; then
+    log "Cleaning up build artifacts..."
+    rm -rf "${XCFRAMEWORK_NAME}" "${XCFRAMEWORK_NAME}.zip" "${XCFRAMEWORK_NAME}.info"
+fi
+
 log "XCFramework created successfully: ${XCFRAMEWORK_NAME}"
 log "GitHub release: ${REPO_URL}/releases/tag/${RELEASE_TAG}"
 log "Build completed!"
