@@ -194,6 +194,7 @@ create_universal_binary() {
     cat > "${output_dir}/include/module.modulemap" << EOF
 module Oniguruma {
     umbrella header "oniguruma.h"
+    header "oniggnu.h"
     export *
     module * { export * }
 }
