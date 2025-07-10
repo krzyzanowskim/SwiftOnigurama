@@ -265,7 +265,8 @@ if [ "$GITHUB_RELEASE" = true ]; then
 
     # Create GitHub release
     log "Creating GitHub release..."
-    RELEASE_TAG="v${VERSION}-xcframework"
+    TIMESTAMP=$(date +%Y%m%d%H%M%S)
+    RELEASE_TAG="v${VERSION}-xcframework-${TIMESTAMP}"
     RELEASE_TITLE="Oniguruma v${VERSION} with XCFramework Support"
     REPO_URL="https://github.com/krzyzanowskim/oniguruma"
     DOWNLOAD_URL="${REPO_URL}/releases/download/${RELEASE_TAG}/${XCFRAMEWORK_NAME}.zip"
@@ -278,6 +279,7 @@ if [ "$GITHUB_RELEASE" = true ]; then
         # Create or update the tag
         git tag -d "${RELEASE_TAG}" 2>/dev/null || true
         git tag -a "${RELEASE_TAG}" -m "${RELEASE_TITLE}"
+        git push origin "${RELEASE_TAG}" || warn "Failed to push tag to remote"
         
         # Create or update the release
         if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
