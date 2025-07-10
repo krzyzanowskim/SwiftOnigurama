@@ -276,11 +276,22 @@ if [ "$GITHUB_RELEASE" = true ]; then
         # Set default repository
         gh repo set-default "${REPO_URL}" || warn "Failed to set default repository"
         
-        # Calculate initial checksum for the zip file
-        LOCAL_CHECKSUM=$(swift package compute-checksum "${XCFRAMEWORK_NAME}.zip")
-        log "Local XCFramework checksum: ${LOCAL_CHECKSUM}"
+        # Calculate checksum for the local zip file (this is what will be uploaded)
+        CHECKSUM=$(swift package compute-checksum "${XCFRAMEWORK_NAME}.zip")
+        log "XCFramework checksum: ${CHECKSUM}"
 
-        # Create or update the tag first (without Package.swift changes)
+        # Update Package.swift with the new URL and checksum
+        sed -i '' "s|url: \"[^\"]*\"|url: \"${DOWNLOAD_URL}\"|g" Package.swift
+        sed -i '' "s/checksum: \"[^\"]*\"/checksum: \"${CHECKSUM}\"/g" Package.swift
+
+        log "Package.swift updated with URL: ${DOWNLOAD_URL} and checksum: ${CHECKSUM}"
+        
+        # Commit the Package.swift changes
+        git add Package.swift
+        git commit -m "Update Package.swift for ${RELEASE_TAG} release"
+        git push origin master || warn "Failed to push master branch"
+        
+        # Create or update the tag pointing to the commit with updated Package.swift
         git tag -d "${RELEASE_TAG}" 2>/dev/null || true
         git tag -a "${RELEASE_TAG}" -m "${RELEASE_TITLE}"
         git push origin "${RELEASE_TAG}" --force || warn "Failed to push tag to remote"
@@ -293,42 +304,7 @@ if [ "$GITHUB_RELEASE" = true ]; then
         gh release create "${RELEASE_TAG}" \
             --title "${RELEASE_TITLE}" \
             --notes "" \
-            "${XCFRAMEWORK_NAME}.zip" || error "Failed to create GitHub release"
-
-        log "GitHub release created successfully"
-        
-        # Wait a moment for the release to be available
-        sleep 3
-        
-        # Download the artifact from GitHub to verify it matches exactly
-        log "Verifying uploaded artifact..."
-        TEMP_DOWNLOAD="${TEMP_ROOT}/verify_download.zip"
-        curl -L -s "${DOWNLOAD_URL}" -o "${TEMP_DOWNLOAD}" || error "Failed to download artifact from GitHub"
-        
-        # Calculate checksum of the downloaded artifact
-        GITHUB_CHECKSUM=$(swift package compute-checksum "${TEMP_DOWNLOAD}")
-        log "GitHub artifact checksum: ${GITHUB_CHECKSUM}"
-        
-        # Verify checksums match
-        if [ "${LOCAL_CHECKSUM}" != "${GITHUB_CHECKSUM}" ]; then
-            error "Checksum mismatch! Local: ${LOCAL_CHECKSUM}, GitHub: ${GITHUB_CHECKSUM}"
-        fi
-        
-        log "Checksums verified - artifacts match exactly"
-        
-        # Now safely update Package.swift with the verified checksum
-        sed -i '' "s|url: \"[^\"]*\"|url: \"${DOWNLOAD_URL}\"|g" Package.swift
-        sed -i '' "s/checksum: \"[^\"]*\"/checksum: \"${GITHUB_CHECKSUM}\"/g" Package.swift
-
-        log "Package.swift updated with URL: ${DOWNLOAD_URL} and verified checksum: ${GITHUB_CHECKSUM}"
-        
-        # Commit the Package.swift changes
-        git add Package.swift
-        git commit -m "Update Package.swift for ${RELEASE_TAG} release with verified checksum"
-        git push origin master || warn "Failed to push master branch"
-        
-        # Clean up temporary download
-        rm -f "${TEMP_DOWNLOAD}"
+            "${XCFRAMEWORK_NAME}.zip" || warn "Failed to create GitHub release. Please create it manually."
     else
         error "gh CLI not found. Please install it to create GitHub releases."
     fi
