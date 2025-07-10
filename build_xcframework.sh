@@ -1,13 +1,38 @@
 #!/bin/bash
 
+# Usage: ./build_xcframework.sh [--github-release]
+# This script builds Oniguruma XCFramework for all Apple platforms
+# --github-release: Create GitHub release and upload XCFramework
+
 set -e
+
+# Store the original source directory
+SOURCE_DIR="$(pwd)"
+
+# Parse command line arguments
+GITHUB_RELEASE=false
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --github-release)
+            GITHUB_RELEASE=true
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Usage: $0 [--github-release]"
+            exit 1
+            ;;
+    esac
+done
 
 # Configuration
 LIBRARY_NAME="oniguruma"
 VERSION="6.9.10"
-BUILD_DIR="build_xcframework"
-INSTALL_DIR="install"
+TEMP_ROOT=$(mktemp -d)
+BUILD_DIR="${TEMP_ROOT}/build"
+INSTALL_DIR="${TEMP_ROOT}/install"
 XCFRAMEWORK_NAME="Oniguruma.xcframework"
+XCFRAMEWORK_PATH="${TEMP_ROOT}/${XCFRAMEWORK_NAME}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -38,12 +63,9 @@ fi
 command -v cmake >/dev/null 2>&1 || error "cmake is required but not installed"
 command -v xcodebuild >/dev/null 2>&1 || error "xcodebuild is required but not installed"
 
-# Clean previous builds
-log "Cleaning previous builds..."
-rm -rf "${BUILD_DIR}" "${XCFRAMEWORK_NAME}" "${INSTALL_DIR}"
-
-# Create build directory
-mkdir -p "${BUILD_DIR}"
+log "Using temporary root directory: ${TEMP_ROOT}"
+log "BUILD_DIR: ${BUILD_DIR}"
+log "INSTALL_DIR: ${INSTALL_DIR}"
 
 # Architectures to build
 ARCHS=("x86_64" "arm64")
@@ -114,7 +136,7 @@ build_for_platform() {
     # Configure with CMake
     cd "${build_subdir}"
     
-    cmake ../.. \
+    cmake "${SOURCE_DIR}" \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_SYSTEM_NAME=${cmake_system_name} \
         -DCMAKE_OSX_ARCHITECTURES=${arch} \
@@ -122,7 +144,7 @@ build_for_platform() {
         -DCMAKE_C_FLAGS="${cflags}" \
         -DCMAKE_EXE_LINKER_FLAGS="${ldflags}" \
         -DCMAKE_SHARED_LINKER_FLAGS="${ldflags}" \
-        -DCMAKE_INSTALL_PREFIX="../../${install_subdir}" \
+        -DCMAKE_INSTALL_PREFIX="$(realpath ${install_subdir})" \
         -DBUILD_SHARED_LIBS=OFF \
         -DBUILD_TEST=OFF \
         -DINSTALL_DOCUMENTATION=OFF \
@@ -167,6 +189,15 @@ create_universal_binary() {
     local output_dir="${INSTALL_DIR}/${platform}_universal"
     
     mkdir -p "${output_dir}/lib" "${output_dir}/include"
+    
+    # Create module.modulemap for XCFramework
+    cat > "${output_dir}/include/module.modulemap" << EOF
+module Oniguruma {
+    umbrella header "oniguruma.h"
+    export *
+    module * { export * }
+}
+EOF
     
     # Create universal library
     case ${platform} in
@@ -219,141 +250,76 @@ xcodebuild -create-xcframework \
     -headers "${INSTALL_DIR}/iphonesimulator_universal/include" \
     -library "${INSTALL_DIR}/maccatalyst_universal/lib/libonig.a" \
     -headers "${INSTALL_DIR}/maccatalyst_universal/include" \
-    -output "${XCFRAMEWORK_NAME}" \
+    -output "${XCFRAMEWORK_PATH}" \
     || error "XCFramework creation failed"
 
 # Verify the XCFramework
 log "Verifying XCFramework..."
-xcodebuild -checkFirstLaunchForSimulator || true
-file "${XCFRAMEWORK_NAME}"
+file "${XCFRAMEWORK_PATH}"
 
-# Create info file
-log "Creating info file..."
-cat > "${XCFRAMEWORK_NAME}.info" << EOF
-Oniguruma ${VERSION} XCFramework
-Built on: $(date)
-Platforms: macOS, iOS, iOS Simulator, Mac Catalyst
-Architectures: x86_64, arm64
 
-This XCFramework contains the Oniguruma regular expression library built as
-static libraries for all Apple platforms.
+if [ "$GITHUB_RELEASE" = true ]; then
+    # Create zip archive for GitHub release
+    log "Creating zip archive..."
+    cd "${TEMP_ROOT}" && zip -r "${SOURCE_DIR}/${XCFRAMEWORK_NAME}.zip" "${XCFRAMEWORK_NAME}" && cd "${SOURCE_DIR}"
 
-To use in Xcode:
-1. Drag and drop the ${XCFRAMEWORK_NAME} into your Xcode project
-2. Add it to your target's "Frameworks, Libraries, and Embedded Content"
-3. Set "Embed & Sign" or "Do Not Embed" as appropriate
-4. Include the headers: #include <oniguruma.h>
+    # Create GitHub release
+    log "Creating GitHub release..."
+    RELEASE_TAG="v${VERSION}-xcframework"
+    RELEASE_TITLE="Oniguruma v${VERSION} with XCFramework Support"
+    REPO_URL="https://github.com/krzyzanowskim/oniguruma"
+    DOWNLOAD_URL="${REPO_URL}/releases/download/${RELEASE_TAG}/${XCFRAMEWORK_NAME}.zip"
 
-License: BSD License (see COPYING file in the original source)
-EOF
+    # Check if gh CLI is available
+    if command -v gh >/dev/null 2>&1; then
+        # Set default repository
+        gh repo set-default "${REPO_URL}" || warn "Failed to set default repository"
+        
+        # Create or update the tag
+        git tag -d "${RELEASE_TAG}" 2>/dev/null || true
+        git tag -a "${RELEASE_TAG}" -m "${RELEASE_TITLE}"
+        
+        # Create or update the release
+        if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            log "Release ${RELEASE_TAG} already exists, deleting and recreating..."
+            gh release delete "${RELEASE_TAG}" --yes || warn "Failed to delete existing release"
+        fi
+        gh release create "${RELEASE_TAG}" \
+            --title "${RELEASE_TITLE}" \
+            --notes "" \
+            "${XCFRAMEWORK_NAME}.zip" || warn "Failed to create GitHub release. Please create it manually."
+        
+        # Calculate checksum for the zip file
+        CHECKSUM=$(swift package compute-checksum "${XCFRAMEWORK_NAME}.zip")
 
-# Create zip archive for GitHub release
-log "Creating zip archive..."
-zip -r "${XCFRAMEWORK_NAME}.zip" "${XCFRAMEWORK_NAME}"
+        # Update the existing Package.swift with new URL and checksum
+        sed -i '' "s|url: \"[^\"]*\"|url: \"${DOWNLOAD_URL}\"|g" Package.swift
+        sed -i '' "s/checksum: \"[^\"]*\"/checksum: \"${CHECKSUM}\"/g" Package.swift
 
-# Create GitHub release
-log "Creating GitHub release..."
-RELEASE_TAG="v${VERSION}-xcframework"
-RELEASE_TITLE="Oniguruma v${VERSION} with XCFramework Support"
-RELEASE_NOTES="$(cat <<EOF
-# Oniguruma v${VERSION} with XCFramework Support
-
-This release includes pre-built XCFramework binaries for all Apple platforms:
-- macOS (x86_64, arm64)
-- iOS (arm64)
-- iOS Simulator (x86_64, arm64)
-- Mac Catalyst (x86_64, arm64)
-
-## What's New
-- Added XCFramework build support for easy integration into iOS/macOS projects
-- Built with CMake for consistent cross-platform compilation
-- Optimized for Release configuration with static linking
-
-## Installation
-
-### Using XCFramework
-1. Download \`${XCFRAMEWORK_NAME}.zip\`
-2. Extract and add to your Xcode project
-3. Add to your target's "Frameworks, Libraries, and Embedded Content"
-
-### Using Swift Package Manager
-Add this repository as a Swift Package dependency in Xcode or add to your Package.swift:
-
-\`\`\`swift
-dependencies: [
-    .package(url: "https://github.com/krzyzanowskim/oniguruma.git", from: "${VERSION}")
-]
-\`\`\`
-
-## License
-BSD License (see COPYING file)
-EOF
-)"
-
-# Check if gh CLI is available
-if command -v gh >/dev/null 2>&1; then
-    # Create or update the tag
-    git tag -f "${RELEASE_TAG}" || git tag "${RELEASE_TAG}"
-    
-    # Create the release
-    gh release create "${RELEASE_TAG}" \
-        --title "${RELEASE_TITLE}" \
-        --notes "${RELEASE_NOTES}" \
-        "${XCFRAMEWORK_NAME}.zip" || warn "Failed to create GitHub release. Please create it manually."
+        log "Package.swift updated with URL: ${DOWNLOAD_URL} and checksum: ${CHECKSUM}"
+    else
+        error "gh CLI not found. Please install it to create GitHub releases."
+    fi
 else
-    warn "gh CLI not found. Please install it to auto-create GitHub releases."
-    log "Tag created: ${RELEASE_TAG}"
-    log "Upload ${XCFRAMEWORK_NAME}.zip to GitHub release manually"
+    # Create zip archive locally
+    log "Creating local zip archive..."
+    cd "${TEMP_ROOT}" && zip -r "${SOURCE_DIR}/${XCFRAMEWORK_NAME}.zip" "${XCFRAMEWORK_NAME}" && cd "${SOURCE_DIR}"
+    log "Skipping GitHub release creation. Use --github-release flag to create release."
 fi
 
-# Create Swift Package Manager Package.swift
-log "Creating Package.swift for Swift Package Manager..."
-REPO_URL="https://github.com/krzyzanowskim/oniguruma"
-DOWNLOAD_URL="${REPO_URL}/releases/download/${RELEASE_TAG}/${XCFRAMEWORK_NAME}.zip"
-
-cat > Package.swift << EOF
-// swift-tools-version: 5.7
-import PackageDescription
-
-let package = Package(
-    name: "Oniguruma",
-    platforms: [
-        .macOS(.v10_15),
-        .iOS(.v12),
-        .macCatalyst(.v13)
-    ],
-    products: [
-        .library(
-            name: "Oniguruma",
-            targets: ["Oniguruma"]
-        ),
-    ],
-    targets: [
-        .binaryTarget(
-            name: "Oniguruma",
-            url: "${DOWNLOAD_URL}",
-            checksum: "CHECKSUM_PLACEHOLDER"
-        )
-    ]
-)
-EOF
-
-# Calculate checksum for the zip file
-CHECKSUM=\$(swift package compute-checksum "${XCFRAMEWORK_NAME}.zip")
-sed -i '' "s/CHECKSUM_PLACEHOLDER/\${CHECKSUM}/g" Package.swift
-
-log "Package.swift created with checksum: \${CHECKSUM}"
 
 # Cleanup
-log "Cleaning up intermediate files..."
-rm -rf "${BUILD_DIR}" "${INSTALL_DIR}"
+log "Cleaning up temporary files..."
+rm -rf "${TEMP_ROOT}"
 
 # Cleanup build artifacts after successful release
-if [ $? -eq 0 ]; then
+if [ $? -eq 0 ] && [ "$GITHUB_RELEASE" = true ]; then
     log "Cleaning up build artifacts..."
-    rm -rf "${XCFRAMEWORK_NAME}" "${XCFRAMEWORK_NAME}.zip" "${XCFRAMEWORK_NAME}.info"
+    rm -rf "${XCFRAMEWORK_NAME}.zip"
 fi
 
-log "XCFramework created successfully: ${XCFRAMEWORK_NAME}"
-log "GitHub release: ${REPO_URL}/releases/tag/${RELEASE_TAG}"
+log "XCFramework archive created successfully: ${SOURCE_DIR}/${XCFRAMEWORK_NAME}.zip"
+if [ "$GITHUB_RELEASE" = true ]; then
+    log "GitHub release: ${REPO_URL}/releases/tag/${RELEASE_TAG}"
+fi
 log "Build completed!"
