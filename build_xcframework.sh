@@ -266,8 +266,8 @@ if [ "$GITHUB_RELEASE" = true ]; then
     # Create GitHub release
     log "Creating GitHub release..."
     TIMESTAMP=$(date +%Y%m%d%H%M%S)
-    RELEASE_TAG="v${VERSION}-xcframework-${TIMESTAMP}"
-    RELEASE_TITLE="Oniguruma v${VERSION} with XCFramework Support"
+    RELEASE_TAG="${VERSION}-${TIMESTAMP}"
+    RELEASE_TITLE="Oniguruma ${VERSION} with XCFramework Support"
     REPO_URL="https://github.com/krzyzanowskim/oniguruma"
     DOWNLOAD_URL="${REPO_URL}/releases/download/${RELEASE_TAG}/${XCFRAMEWORK_NAME}.zip"
 
