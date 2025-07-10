@@ -291,8 +291,8 @@ if [ "$GITHUB_RELEASE" = true ]; then
         # Create or update the tag
         git tag -d "${RELEASE_TAG}" 2>/dev/null || true
         git tag -a "${RELEASE_TAG}" -m "${RELEASE_TITLE}"
-        git push origin main || warn "Failed to push main branch"
-        git push origin "${RELEASE_TAG}" || warn "Failed to push tag to remote"
+        git push origin master || warn "Failed to push master branch"
+        git push origin "${RELEASE_TAG}" --force || warn "Failed to push tag to remote"
         
         # Create or update the release
         if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
