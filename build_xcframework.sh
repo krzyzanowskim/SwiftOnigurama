@@ -265,8 +265,7 @@ if [ "$GITHUB_RELEASE" = true ]; then
 
     # Create GitHub release
     log "Creating GitHub release..."
-    TIMESTAMP=$(date +%Y%m%d%H%M%S)
-    RELEASE_TAG="${VERSION}-${TIMESTAMP}"
+    RELEASE_TAG="${VERSION}"
     RELEASE_TITLE="Oniguruma ${VERSION} with XCFramework Support"
     REPO_URL="https://github.com/krzyzanowskim/oniguruma"
     DOWNLOAD_URL="${REPO_URL}/releases/download/${RELEASE_TAG}/${XCFRAMEWORK_NAME}.zip"
@@ -276,9 +275,23 @@ if [ "$GITHUB_RELEASE" = true ]; then
         # Set default repository
         gh repo set-default "${REPO_URL}" || warn "Failed to set default repository"
         
+        # Calculate checksum for the zip file
+        CHECKSUM=$(swift package compute-checksum "${XCFRAMEWORK_NAME}.zip")
+
+        # Update the existing Package.swift with new URL and checksum
+        sed -i '' "s|url: \"[^\"]*\"|url: \"${DOWNLOAD_URL}\"|g" Package.swift
+        sed -i '' "s/checksum: \"[^\"]*\"/checksum: \"${CHECKSUM}\"/g" Package.swift
+
+        log "Package.swift updated with URL: ${DOWNLOAD_URL} and checksum: ${CHECKSUM}"
+        
+        # Commit the Package.swift changes
+        git add Package.swift
+        git commit -m "Update Package.swift for ${RELEASE_TAG} release"
+        
         # Create or update the tag
         git tag -d "${RELEASE_TAG}" 2>/dev/null || true
         git tag -a "${RELEASE_TAG}" -m "${RELEASE_TITLE}"
+        git push origin main || warn "Failed to push main branch"
         git push origin "${RELEASE_TAG}" || warn "Failed to push tag to remote"
         
         # Create or update the release
@@ -290,15 +303,6 @@ if [ "$GITHUB_RELEASE" = true ]; then
             --title "${RELEASE_TITLE}" \
             --notes "" \
             "${XCFRAMEWORK_NAME}.zip" || warn "Failed to create GitHub release. Please create it manually."
-        
-        # Calculate checksum for the zip file
-        CHECKSUM=$(swift package compute-checksum "${XCFRAMEWORK_NAME}.zip")
-
-        # Update the existing Package.swift with new URL and checksum
-        sed -i '' "s|url: \"[^\"]*\"|url: \"${DOWNLOAD_URL}\"|g" Package.swift
-        sed -i '' "s/checksum: \"[^\"]*\"/checksum: \"${CHECKSUM}\"/g" Package.swift
-
-        log "Package.swift updated with URL: ${DOWNLOAD_URL} and checksum: ${CHECKSUM}"
     else
         error "gh CLI not found. Please install it to create GitHub releases."
     fi
