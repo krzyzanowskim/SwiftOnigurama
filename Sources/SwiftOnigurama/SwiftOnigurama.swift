@@ -47,7 +47,7 @@ public class OnigRegex {
         
         guard result >= 0 else { return nil }
         
-        return OnigMatch(region: region, string: string)
+        return Self.createMatch(from: region, string: string)
     }
     
     public func match(in string: String, at index: String.Index) -> OnigMatch? {
@@ -66,7 +66,7 @@ public class OnigRegex {
         
         guard result >= 0 else { return nil }
         
-        return OnigMatch(region: region, string: string)
+        return Self.createMatch(from: region, string: string)
     }
     
     public func findAll(in string: String) -> [OnigMatch] {
@@ -88,19 +88,13 @@ public class OnigRegex {
         
         return matches
     }
-}
-
-public struct OnigMatch {
-    public let range: Range<String.Index>
-    public let captures: [OnigCapture]
-    private let sourceString: String
     
-    init?(region: UnsafeMutablePointer<OnigRegion>, string: String) {
+    // MARK: - Internal Helper Methods
+    
+    private static func createMatch(from region: UnsafeMutablePointer<OnigRegion>, string: String) -> OnigMatch? {
         guard let regionPtr = region.pointee.beg,
               let endPtr = region.pointee.end,
               region.pointee.num_regs > 0 else { return nil }
-        
-        self.sourceString = string
         
         let utf8View = string.utf8
         let startByteOffset = Int(regionPtr[0])
@@ -114,8 +108,9 @@ public struct OnigMatch {
         let stringStartIndex = String.Index(startIndex, within: string) ?? string.endIndex
         let stringEndIndex = String.Index(endIndex, within: string) ?? string.endIndex
         
-        self.range = stringStartIndex..<stringEndIndex
+        let matchRange = stringStartIndex..<stringEndIndex
         
+        // Create capture groups
         var captures: [OnigCapture] = []
         for i in 0..<Int(region.pointee.num_regs) {
             let capStartByte = Int(regionPtr[i])
@@ -135,7 +130,20 @@ public struct OnigMatch {
             }
         }
         
+        return OnigMatch(range: matchRange, captures: captures, sourceString: string)
+    }
+}
+
+public struct OnigMatch {
+    public let range: Range<String.Index>
+    public let captures: [OnigCapture]
+    private let sourceString: String
+    
+    // Internal initializer - no unsafe pointers in public API
+    internal init(range: Range<String.Index>, captures: [OnigCapture], sourceString: String) {
+        self.range = range
         self.captures = captures
+        self.sourceString = sourceString
     }
     
     public var matchedString: String {
@@ -147,7 +155,7 @@ public struct OnigCapture {
     public let range: Range<String.Index>?
     private let sourceString: String
     
-    init(range: Range<String.Index>?, string: String) {
+    internal init(range: Range<String.Index>?, string: String) {
         self.range = range
         self.sourceString = string
     }
