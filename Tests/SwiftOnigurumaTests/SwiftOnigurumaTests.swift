@@ -1,7 +1,7 @@
 import XCTest
-@testable import SwiftOnigurama
+@testable import SwiftOniguruma
 
-final class SwiftOniguramaTests: XCTestCase {
+final class SwiftOnigurumaTests: XCTestCase {
     
     func testBasicPatternCompilation() throws {
         let regex = try OnigRegex(pattern: "hello")

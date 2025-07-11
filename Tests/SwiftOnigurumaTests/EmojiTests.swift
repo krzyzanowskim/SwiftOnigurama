@@ -1,5 +1,5 @@
 import XCTest
-@testable import SwiftOnigurama
+@testable import SwiftOniguruma
 
 final class EmojiTests: XCTestCase {
     

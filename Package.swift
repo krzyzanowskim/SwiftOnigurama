@@ -14,8 +14,8 @@ let package = Package(
             targets: ["Oniguruma"]
         ),
         .library(
-            name: "SwiftOnigurama",
-            targets: ["SwiftOnigurama"]
+            name: "SwiftOniguruma",
+            targets: ["SwiftOniguruma"]
         ),
     ],
     targets: [
@@ -25,15 +25,15 @@ let package = Package(
             checksum: "c11ae7b5f33eeeeff7c8a97e7cf0fb317ecc7f8df77c7f1a14074184130f6238"
         ),
         .target(
-        	name: "SwiftOnigurama",
+        	name: "SwiftOniguruma",
         	dependencies: [
         		"Oniguruma"
         	]
         ),
         .testTarget(
-            name: "SwiftOniguramaTests",
+            name: "SwiftOnigurumaTests",
             dependencies: [
-                "SwiftOnigurama"
+                "SwiftOniguruma"
             ]
         )
     ]
