@@ -1,4 +1,4 @@
-SwiftOnigurama
+SwiftOniguruma
 ==============
 
 **A Swift-focused distribution of the Oniguruma regular expression library**
@@ -9,7 +9,7 @@ This repository is a derivative work based on a forked copy of the source code f
 
 This project contains:
 - **Original Oniguruma C library source code** for building XCFramework
-- **SwiftOnigurama**: A Swift wrapper providing a modern, safe API
+- **SwiftOniguruma**: A Swift wrapper providing a modern, safe API
 - **Pre-built XCFramework** for Apple platforms (iOS, macOS, Mac Catalyst)
 - **Swift Package Manager** integration
 
@@ -33,23 +33,23 @@ Installation
 
 ### Swift Package Manager (Recommended)
 
-Add SwiftOnigurama to your project using Swift Package Manager:
+Add SwiftOniguruma to your project using Swift Package Manager:
 
 **In Xcode:**
 1. Go to File → Add Package Dependencies
-2. Enter the repository URL: `https://github.com/krzyzanowskim/SwiftOnigurama.git`
+2. Enter the repository URL: `https://github.com/krzyzanowskim/SwiftOniguruma.git`
 3. Choose the version (6.9.10 or later)
 
 **In Package.swift:**
 ```swift
 dependencies: [
-    .package(url: "https://github.com/krzyzanowskim/SwiftOnigurama.git", from: "6.9.10")
+    .package(url: "https://github.com/krzyzanowskim/SwiftOniguruma.git", from: "6.9.10")
 ],
 targets: [
     .target(
         name: "YourTarget",
         dependencies: [
-            .product(name: "SwiftOnigurama", package: "SwiftOnigurama")
+            .product(name: "SwiftOniguruma", package: "SwiftOniguruma")
         ]
     )
 ]
@@ -57,7 +57,7 @@ targets: [
 
 ### Manual XCFramework Installation
 
-1. Download the latest XCFramework from: https://github.com/krzyzanowskim/SwiftOnigurama/releases
+1. Download the latest XCFramework from: https://github.com/krzyzanowskim/SwiftOniguruma/releases
 2. Extract `Oniguruma.xcframework.zip`
 3. In Xcode, drag and drop `Oniguruma.xcframework` into your project
 4. Add it to your target's "Frameworks, Libraries, and Embedded Content"
@@ -80,9 +80,9 @@ For Linux, Windows, or other platforms, please refer to the original Oniguruma r
 Swift Usage
 -----------
 
-### SwiftOnigurama
+### SwiftOniguruma
 
-This package includes SwiftOnigurama, a Swift wrapper that provides a convenient API for using Oniguruma from Swift applications.
+This package includes SwiftOniguruma, a Swift wrapper that provides a convenient API for using Oniguruma from Swift applications.
 
 ### Setup
 
@@ -90,13 +90,13 @@ Add to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/krzyzanowskim/SwiftOnigurama.git", from: "6.9.10")
+    .package(url: "https://github.com/krzyzanowskim/SwiftOniguruma.git", from: "6.9.10")
 ],
 targets: [
     .target(
         name: "YourTarget",
         dependencies: [
-            .product(name: "SwiftOnigurama", package: "SwiftOnigurama")
+            .product(name: "SwiftOniguruma", package: "SwiftOniguruma")
         ]
     )
 ]
@@ -105,7 +105,7 @@ targets: [
 ### Basic Usage
 
 ```swift
-import SwiftOnigurama
+import SwiftOniguruma
 
 // Create a regex pattern
 let regex = try OnigRegex(pattern: "hello")
@@ -234,7 +234,7 @@ do {
 
 ### Performance
 
-SwiftOnigurama handles UTF-8 encoding conversion efficiently and provides competitive performance for regex operations. The underlying Oniguruma engine is highly optimized for various character encodings and complex patterns.
+SwiftOniguruma handles UTF-8 encoding conversion efficiently and provides competitive performance for regex operations. The underlying Oniguruma engine is highly optimized for various character encodings and complex patterns.
 
 ## Additional Resources
 
