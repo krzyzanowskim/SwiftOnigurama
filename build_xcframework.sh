@@ -268,7 +268,7 @@ if [ "$GITHUB_RELEASE" = true ]; then
     log "Creating GitHub release..."
     RELEASE_TAG="${VERSION}"
     RELEASE_TITLE="Oniguruma ${VERSION} with XCFramework Support"
-    REPO_URL="https://github.com/krzyzanowskim/SwiftOnigurama"
+    REPO_URL="https://github.com/krzyzanowskim/SwiftOniguruma"
     DOWNLOAD_URL="${REPO_URL}/releases/download/${RELEASE_TAG}/${XCFRAMEWORK_NAME}.zip"
 
     # Check if gh CLI is available
