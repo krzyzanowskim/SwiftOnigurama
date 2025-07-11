@@ -4,14 +4,22 @@ import Oniguruma
 public class OnigRegex {
     private var regex: Oniguruma.OnigRegex?
     
-    public init(pattern: String, options: OnigOptionType = ONIG_OPTION_DEFAULT) throws {
+    public init(pattern: String, options: OnigOptionType = ONIG_OPTION_DEFAULT, syntax: UnsafeMutablePointer<OnigSyntaxType>? = nil) throws {
         var reg: Oniguruma.OnigRegex?
         var errorInfo = OnigErrorInfo()
         
         let patternBytes = Array(pattern.utf8)
-        let result = patternBytes.withUnsafeBufferPointer { buffer in
-            onig_new(&reg, buffer.baseAddress!, buffer.baseAddress! + buffer.count,
-                     options, &OnigEncodingUTF8, &OnigSyntaxOniguruma, &errorInfo)
+        let result: Int32
+        if let syntax = syntax {
+            result = patternBytes.withUnsafeBufferPointer { buffer in
+                onig_new(&reg, buffer.baseAddress!, buffer.baseAddress! + buffer.count,
+                         options, &OnigEncodingUTF8, syntax, &errorInfo)
+            }
+        } else {
+            result = patternBytes.withUnsafeBufferPointer { buffer in
+                onig_new(&reg, buffer.baseAddress!, buffer.baseAddress! + buffer.count,
+                         options, &OnigEncodingUTF8, &OnigSyntaxPerl_NG, &errorInfo)
+            }
         }
         
         guard result == ONIG_NORMAL else {
