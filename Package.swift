@@ -22,7 +22,7 @@ let package = Package(
         .binaryTarget(
             name: "Oniguruma",
             url: "https://github.com/krzyzanowskim/SwiftOniguruma/releases/download/6.9.10/Oniguruma.xcframework.zip",
-            checksum: "84e56c3d6506fc68c8ffe49f56d043e0b8b6ce6905babab8788a986df7198457"
+            checksum: "5ac929c580666ae4c92dff6cafbd30f4159af60515a19247d7b738cda9fc4932"
         ),
         .target(
         	name: "SwiftOniguruma",
