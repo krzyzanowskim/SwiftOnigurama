@@ -116,7 +116,8 @@ public class OnigRegex {
         let stringStartIndex = String.Index(startIndex, within: string) ?? string.endIndex
         let stringEndIndex = String.Index(endIndex, within: string) ?? string.endIndex
         
-        let matchRange = stringStartIndex..<stringEndIndex
+        // Ensure valid range for ZWJ sequences and complex Unicode
+        let matchRange = createSafeRange(start: stringStartIndex, end: stringEndIndex, in: string)
         
         // Create capture groups
         var captures: [OnigCapture] = []
@@ -131,7 +132,8 @@ public class OnigRegex {
                 let stringCapStartIndex = String.Index(capStartIndex, within: string) ?? string.endIndex
                 let stringCapEndIndex = String.Index(capEndIndex, within: string) ?? string.endIndex
                 
-                let captureRange = stringCapStartIndex..<stringCapEndIndex
+                // Ensure valid range for ZWJ sequences and complex Unicode
+                let captureRange = createSafeRange(start: stringCapStartIndex, end: stringCapEndIndex, in: string)
                 captures.append(OnigCapture(range: captureRange, string: string))
             } else {
                 captures.append(OnigCapture(range: nil, string: string))
@@ -139,6 +141,50 @@ public class OnigRegex {
         }
         
         return OnigMatch(range: matchRange, captures: captures, sourceString: string)
+    }
+    
+    /// Creates a safe range that respects ZWJ sequences and complex Unicode
+    private static func createSafeRange(start: String.Index, end: String.Index, in text: String) -> Range<String.Index> {
+        // Handle case where start > end (can happen with complex Unicode)
+        guard start <= end else {
+            // If indices are swapped, create a zero-width range at the earlier position
+            return start..<start
+        }
+        
+        // Check if the text contains ZWJ sequences that could cause issues
+        let containsZWJ = text.contains("\u{200D}")
+        
+        if containsZWJ {
+            // For ZWJ sequences, adjust to grapheme cluster boundaries
+            let adjustedStart: String.Index
+            let adjustedEnd: String.Index
+            
+            if start == text.endIndex {
+                adjustedStart = text.endIndex
+            } else {
+                let startClusterRange = text.rangeOfComposedCharacterSequence(at: start)
+                adjustedStart = startClusterRange.lowerBound
+            }
+            
+            if end == text.endIndex {
+                adjustedEnd = text.endIndex
+            } else {
+                let endClusterRange = text.rangeOfComposedCharacterSequence(at: end)
+                // Use lowerBound to avoid being inside a cluster
+                adjustedEnd = endClusterRange.lowerBound
+            }
+            
+            // Ensure final range is valid
+            if adjustedStart <= adjustedEnd {
+                return adjustedStart..<adjustedEnd
+            } else {
+                // Fall back to zero-width range
+                return adjustedStart..<adjustedStart
+            }
+        } else {
+            // For normal text, the range should be valid as-is
+            return start..<end
+        }
     }
 }
 
