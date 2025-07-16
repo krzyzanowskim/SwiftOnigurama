@@ -36,6 +36,10 @@ public class OnigRegex {
     }
     
     public func search(in string: String, range: Range<String.Index>? = nil) -> OnigMatch? {
+        return search(in: string, range: range, options: .none)
+    }
+    
+    public func search(in string: String, range: Range<String.Index>? = nil, options: SearchOptions) -> OnigMatch? {
         guard let regex = regex else { return nil }
         
         let utf8String = Array(string.utf8)
@@ -50,7 +54,7 @@ public class OnigRegex {
         let result = utf8String.withUnsafeBufferPointer { buffer in
             onig_search(regex, buffer.baseAddress!, buffer.baseAddress! + buffer.count,
                        buffer.baseAddress! + searchRange.0, buffer.baseAddress! + searchRange.1,
-                       region, ONIG_OPTION_NONE)
+                       region, options.rawValue)
         }
         
         guard result >= 0 else { return nil }
@@ -59,6 +63,10 @@ public class OnigRegex {
     }
     
     public func match(in string: String, at index: String.Index) -> OnigMatch? {
+        return match(in: string, at: index, options: .none)
+    }
+    
+    public func match(in string: String, at index: String.Index, options: SearchOptions) -> OnigMatch? {
         guard let regex = regex else { return nil }
         
         let utf8String = Array(string.utf8)
@@ -69,7 +77,7 @@ public class OnigRegex {
         
         let result = utf8String.withUnsafeBufferPointer { buffer in
             onig_match(regex, buffer.baseAddress!, buffer.baseAddress! + buffer.count,
-                      buffer.baseAddress! + byteOffset, region, ONIG_OPTION_NONE)
+                      buffer.baseAddress! + byteOffset, region, options.rawValue)
         }
         
         guard result >= 0 else { return nil }
