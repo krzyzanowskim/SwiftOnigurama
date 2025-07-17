@@ -1,24 +1,76 @@
 import Foundation
 import Oniguruma
 
+/// Regex syntax flavors supported by Oniguruma
+public enum OnigSyntax {
+    /// ASIS syntax
+    case asis
+    /// POSIX Basic syntax
+    case posixBasic
+    /// POSIX Extended syntax
+    case posixExtended
+    /// Emacs syntax
+    case emacs
+    /// Grep syntax
+    case grep
+    /// GNU Regex syntax
+    case gnuRegex
+    /// Java syntax
+    case java
+    /// Perl syntax
+    case perl
+    /// Perl syntax with named groups
+    case perlNG
+    /// Ruby syntax
+    case ruby
+    /// Python syntax
+    case python
+    /// Oniguruma syntax (Ruby-like)
+    case oniguruma
+    
+    /// Perform an operation with the syntax pointer
+    internal func withSyntaxPointer<T>(_ body: (UnsafeMutablePointer<OnigSyntaxType>) throws -> T) rethrows -> T {
+        switch self {
+        case .asis:
+            return try body(&OnigSyntaxASIS)
+        case .posixBasic:
+            return try body(&OnigSyntaxPosixBasic)
+        case .posixExtended:
+            return try body(&OnigSyntaxPosixExtended)
+        case .emacs:
+            return try body(&OnigSyntaxEmacs)
+        case .grep:
+            return try body(&OnigSyntaxGrep)
+        case .gnuRegex:
+            return try body(&OnigSyntaxGnuRegex)
+        case .java:
+            return try body(&OnigSyntaxJava)
+        case .perl:
+            return try body(&OnigSyntaxPerl)
+        case .perlNG:
+            return try body(&OnigSyntaxPerl_NG)
+        case .ruby:
+            return try body(&OnigSyntaxRuby)
+        case .python:
+            return try body(&OnigSyntaxPython)
+        case .oniguruma:
+            return try body(&OnigSyntaxOniguruma)
+        }
+    }
+}
+
 public class OnigRegex {
     private var regex: Oniguruma.OnigRegex?
     
-    public init(pattern: String, options: OnigOptions = .default, syntax: UnsafeMutablePointer<OnigSyntaxType>? = nil) throws {
+    public init(pattern: String, options: OnigOptions, syntax: OnigSyntax) throws {
         var reg: Oniguruma.OnigRegex?
         var errorInfo = OnigErrorInfo()
         
         let patternBytes = Array(pattern.utf8)
-        let result: Int32
-        if let syntax = syntax {
-            result = patternBytes.withUnsafeBufferPointer { buffer in
+        let result = syntax.withSyntaxPointer { syntaxPtr in
+            patternBytes.withUnsafeBufferPointer { buffer in
                 onig_new(&reg, buffer.baseAddress!, buffer.baseAddress! + buffer.count,
-                         options.rawValue, &OnigEncodingUTF8, syntax, &errorInfo)
-            }
-        } else {
-            result = patternBytes.withUnsafeBufferPointer { buffer in
-                onig_new(&reg, buffer.baseAddress!, buffer.baseAddress! + buffer.count,
-                         options.rawValue, &OnigEncodingUTF8, &OnigSyntaxPerl_NG, &errorInfo)
+                         options.rawValue, &OnigEncodingUTF8, syntaxPtr, &errorInfo)
             }
         }
         
@@ -29,10 +81,6 @@ public class OnigRegex {
         self.regex = reg
     }
     
-    /// Convenience initializer that accepts raw OnigOptionType for backward compatibility
-    public convenience init(pattern: String, options: OnigOptionType, syntax: UnsafeMutablePointer<OnigSyntaxType>? = nil) throws {
-        try self.init(pattern: pattern, options: OnigOptions(rawValue: options), syntax: syntax)
-    }
     
     deinit {
         if let regex = regex {
@@ -253,7 +301,7 @@ public struct OnigOptions: OptionSet {
         self.rawValue = rawValue
     }
     
-    /// Default options (none)
+    /// No options
     public static let none = OnigOptions(rawValue: ONIG_OPTION_NONE)
     
     /// Default options (same as none)

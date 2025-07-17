@@ -107,8 +107,8 @@ targets: [
 ```swift
 import SwiftOniguruma
 
-// Create a regex pattern
-let regex = try OnigRegex(pattern: "hello")
+// Create a regex pattern - must specify both options and syntax
+let regex = try OnigRegex(pattern: "hello", options: .default, syntax: .perlNG)
 
 // Search for matches
 if let match = regex.search(in: "hello world") {
@@ -122,10 +122,29 @@ let noMatch = regex.search(in: "goodbye world")  // nil
 
 ### Advanced Features
 
+#### Syntax Types
+
+SwiftOniguruma supports multiple regex syntax flavors:
+
+```swift
+// Perl_NG syntax (default behavior for most patterns)
+let perlRegex = try OnigRegex(pattern: "^world", options: .default, syntax: .perlNG)
+// In Perl_NG, ^ only matches at string start
+
+// Ruby/Oniguruma syntax  
+let rubyRegex = try OnigRegex(pattern: "^world", options: .default, syntax: .ruby)
+// In Ruby, ^ matches at line boundaries
+
+// Other supported syntaxes
+let pythonRegex = try OnigRegex(pattern: "\\bhello\\b", options: .default, syntax: .python)
+let javaRegex = try OnigRegex(pattern: "pattern", options: .default, syntax: .java)
+let posixRegex = try OnigRegex(pattern: "[[:alpha:]]+", options: .default, syntax: .posixExtended)
+```
+
 #### Capture Groups
 
 ```swift
-let regex = try OnigRegex(pattern: "(\\w+)\\s+(\\w+)")
+let regex = try OnigRegex(pattern: "(\\w+)\\s+(\\w+)", options: .default, syntax: .perlNG)
 if let match = regex.search(in: "hello world") {
     print(match.matchedString)           // "hello world"
     print(match.captures[0].matchedString) // "hello world" (full match)
@@ -137,7 +156,7 @@ if let match = regex.search(in: "hello world") {
 #### Find All Matches
 
 ```swift
-let regex = try OnigRegex(pattern: "\\d+")
+let regex = try OnigRegex(pattern: "\\d+", options: .default, syntax: .perlNG)
 let matches = regex.findAll(in: "There are 123 apples and 456 oranges")
 
 for match in matches {
@@ -149,21 +168,25 @@ for match in matches {
 
 ```swift
 // Case-insensitive matching
-let regex = try OnigRegex(pattern: "HELLO", options: .ignoreCase)
+let regex = try OnigRegex(pattern: "HELLO", options: .ignoreCase, syntax: .perlNG)
 let match = regex.search(in: "hello world")  // matches
 
-// Multiline mode
-let regex = try OnigRegex(pattern: "^world", options: .multiline)
+// Multiline mode (makes . match newlines)
+let regex = try OnigRegex(pattern: "hello.world", options: .multiline, syntax: .perlNG)
+let match = regex.search(in: "hello\nworld")  // matches
+
+// For ^ and $ to match line boundaries in Perl_NG, use negateSingleline
+let regex = try OnigRegex(pattern: "^world", options: .negateSingleline, syntax: .perlNG)
 let match = regex.search(in: "hello\nworld")  // matches
 
 // Multiple options
-let regex = try OnigRegex(pattern: "pattern", options: [.ignoreCase, .multiline])
+let regex = try OnigRegex(pattern: "pattern", options: [.ignoreCase, .multiline], syntax: .perlNG)
 ```
 
 #### Position-Specific Matching
 
 ```swift
-let regex = try OnigRegex(pattern: "world")
+let regex = try OnigRegex(pattern: "world", options: .default, syntax: .perlNG)
 let string = "hello world"
 
 // Match at a specific position
@@ -182,11 +205,11 @@ if let match = regex.search(in: string, range: startIndex..<string.endIndex) {
 
 ```swift
 // Unicode characters work seamlessly
-let regex = try OnigRegex(pattern: "🚀")
+let regex = try OnigRegex(pattern: "🚀", options: .default, syntax: .perlNG)
 let match = regex.search(in: "Hello 🚀 World")  // matches
 
 // Unicode property classes
-let regex = try OnigRegex(pattern: "[\\p{L}]+")  // matches letters
+let regex = try OnigRegex(pattern: "[\\p{L}]+", options: .default, syntax: .perlNG)
 let match = regex.search(in: "Héllo wørld")     // "Héllo"
 ```
 
@@ -194,7 +217,7 @@ let match = regex.search(in: "Héllo wørld")     // "Héllo"
 
 ```swift
 do {
-    let regex = try OnigRegex(pattern: "valid pattern")
+    let regex = try OnigRegex(pattern: "valid pattern", options: .default, syntax: .perlNG)
     // Use regex...
 } catch let error as OnigError {
     print("Regex error: \(error.localizedDescription)")
@@ -207,9 +230,11 @@ do {
 
 #### OnigRegex
 
-- `init(pattern: String, options: OnigOptionType = ONIG_OPTION_DEFAULT) throws`
+- `init(pattern: String, options: OnigOptions, syntax: OnigSyntax) throws`
 - `search(in string: String, range: Range<String.Index>? = nil) -> OnigMatch?`
+- `search(in string: String, range: Range<String.Index>? = nil, options: SearchOptions) -> OnigMatch?`
 - `match(in string: String, at index: String.Index) -> OnigMatch?`
+- `match(in string: String, at index: String.Index, options: SearchOptions) -> OnigMatch?`
 - `findAll(in string: String) -> [OnigMatch]`
 
 #### OnigMatch
@@ -223,14 +248,42 @@ do {
 - `range: Range<String.Index>?` - Range of the capture (nil for empty groups)
 - `matchedString: String?` - The captured text (nil for empty groups)
 
-#### Available Options
+#### Available Syntax Types (OnigSyntax)
 
+- `.asis` - ASIS syntax
+- `.posixBasic` - POSIX Basic syntax
+- `.posixExtended` - POSIX Extended syntax  
+- `.emacs` - Emacs syntax
+- `.grep` - Grep syntax
+- `.gnuRegex` - GNU Regex syntax
+- `.java` - Java syntax
+- `.perl` - Perl syntax
+- `.perlNG` - Perl syntax with named groups
+- `.ruby` - Ruby syntax
+- `.python` - Python syntax
+- `.oniguruma` - Oniguruma syntax (Ruby-like)
+
+#### Available Compilation Options (OnigOptions)
+
+- `.none` / `.default` - No options
 - `.ignoreCase` - Case-insensitive matching
-- `.extend` - Extended regex syntax
-- `.multiline` - ^ and $ match line boundaries
-- `.singleline` - . matches newlines
+- `.extend` - Extended pattern form (ignore whitespace and comments)
+- `.multiline` - '.' matches newline
+- `.singleline` - '^' and '$' match only string boundaries
+- `.negateSingleline` - Clear singleline ('^' and '$' match line boundaries)
 - `.findLongest` - Find the longest match
 - `.findNotEmpty` - Don't match empty strings
+- `.dontCaptureGroup` - Only named capture groups
+- `.captureGroup` - Capture unnamed groups as well
+
+#### Available Search Options (SearchOptions)
+
+- `.none` - No options
+- `.notBeginOfLine` - Don't regard the beginning of string as line boundary
+- `.notEndOfLine` - Don't regard the end of string as line boundary
+- `.notBeginString` - Don't regard the beginning of string as string start
+- `.notEndString` - Don't regard the end as string endpoint
+- `.notBeginPosition` - Don't regard the start position as start position of search
 
 ### Performance
 

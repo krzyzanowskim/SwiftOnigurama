@@ -4,18 +4,18 @@ import XCTest
 final class SwiftOnigurumaTests: XCTestCase {
     
     func testBasicPatternCompilation() throws {
-        let regex = try OnigRegex(pattern: "hello")
+        let regex = try OnigRegex(pattern: "hello", options: .none, syntax: .perlNG)
         XCTAssertNotNil(regex)
     }
     
     func testInvalidPatternThrowsError() {
-        XCTAssertThrowsError(try OnigRegex(pattern: "[")) { error in
+        XCTAssertThrowsError(try OnigRegex(pattern: "[", options: .default, syntax: .perlNG)) { error in
             XCTAssertTrue(error is OnigError)
         }
     }
     
     func testSimpleStringMatch() throws {
-        let regex = try OnigRegex(pattern: "world")
+        let regex = try OnigRegex(pattern: "world", options: .default, syntax: .perlNG)
         let match = regex.search(in: "hello world")
         
         XCTAssertNotNil(match)
@@ -23,14 +23,14 @@ final class SwiftOnigurumaTests: XCTestCase {
     }
     
     func testNoMatchReturnsNil() throws {
-        let regex = try OnigRegex(pattern: "xyz")
+        let regex = try OnigRegex(pattern: "xyz", options: .default, syntax: .perlNG)
         let match = regex.search(in: "hello world")
         
         XCTAssertNil(match)
     }
     
     func testMatchAtPosition() throws {
-        let regex = try OnigRegex(pattern: "hello")
+        let regex = try OnigRegex(pattern: "hello", options: .default, syntax: .perlNG)
         let string = "hello world"
         let match = regex.match(in: string, at: string.startIndex)
         
@@ -39,7 +39,7 @@ final class SwiftOnigurumaTests: XCTestCase {
     }
     
     func testMatchAtWrongPosition() throws {
-        let regex = try OnigRegex(pattern: "hello")
+        let regex = try OnigRegex(pattern: "hello", options: .default, syntax: .perlNG)
         let string = "hello world"
         let wrongIndex = string.index(string.startIndex, offsetBy: 6)
         let match = regex.match(in: string, at: wrongIndex)
@@ -48,7 +48,7 @@ final class SwiftOnigurumaTests: XCTestCase {
     }
     
     func testCaptureGroups() throws {
-        let regex = try OnigRegex(pattern: "(\\w+)\\s+(\\w+)")
+        let regex = try OnigRegex(pattern: "(\\w+)\\s+(\\w+)", options: .default, syntax: .perlNG)
         let match = regex.search(in: "hello world")
         
         XCTAssertNotNil(match)
@@ -60,7 +60,7 @@ final class SwiftOnigurumaTests: XCTestCase {
     }
     
     func testEmptyCaptureGroup() throws {
-        let regex = try OnigRegex(pattern: "(hello)?(world)")
+        let regex = try OnigRegex(pattern: "(hello)?(world)", options: .default, syntax: .perlNG)
         let match = regex.search(in: "world")
         
         XCTAssertNotNil(match)
@@ -71,7 +71,7 @@ final class SwiftOnigurumaTests: XCTestCase {
     }
     
     func testFindAllMatches() throws {
-        let regex = try OnigRegex(pattern: "\\d+")
+        let regex = try OnigRegex(pattern: "\\d+", options: .default, syntax: .perlNG)
         let matches = regex.findAll(in: "There are 123 apples and 456 oranges")
         
         XCTAssertEqual(matches.count, 2)
@@ -80,14 +80,14 @@ final class SwiftOnigurumaTests: XCTestCase {
     }
     
     func testFindAllWithNoMatches() throws {
-        let regex = try OnigRegex(pattern: "\\d+")
+        let regex = try OnigRegex(pattern: "\\d+", options: .default, syntax: .perlNG)
         let matches = regex.findAll(in: "no numbers here")
         
         XCTAssertTrue(matches.isEmpty)
     }
     
     func testIgnoreCaseOption() throws {
-        let regex = try OnigRegex(pattern: "HELLO", options: .ignoreCase)
+        let regex = try OnigRegex(pattern: "HELLO", options: .ignoreCase, syntax: .perlNG)
         let match = regex.search(in: "hello world")
         
         XCTAssertNotNil(match)
@@ -97,17 +97,17 @@ final class SwiftOnigurumaTests: XCTestCase {
     func testMultilineOption() throws {
         // In Perl_NG syntax with singleline mode (default), ^ and $ only match string boundaries
         // Need to negate singleline to make ^ and $ match line boundaries
-        let regex1 = try OnigRegex(pattern: "^world", options: .negateSingleline)
+        let regex1 = try OnigRegex(pattern: "^world", options: .negateSingleline, syntax: .perlNG)
         let match1 = regex1.search(in: "hello\nworld")
         XCTAssertNotNil(match1, "^ should match line boundaries when singleline is negated")
         XCTAssertEqual(match1?.matchedString, "world")
         
         // Test what multiline actually does - make . match newlines
-        let regex2 = try OnigRegex(pattern: "hello.world")
+        let regex2 = try OnigRegex(pattern: "hello.world", options: .default, syntax: .perlNG)
         let match2 = regex2.search(in: "hello\nworld")
         XCTAssertNil(match2, ". should not match newlines by default")
         
-        let regex3 = try OnigRegex(pattern: "hello.world", options: .multiline)
+        let regex3 = try OnigRegex(pattern: "hello.world", options: .multiline, syntax: .perlNG)
         let match3 = regex3.search(in: "hello\nworld")
         XCTAssertNotNil(match3, ". should match newlines with multiline option")
         XCTAssertEqual(match3?.matchedString, "hello\nworld")
@@ -116,40 +116,61 @@ final class SwiftOnigurumaTests: XCTestCase {
     func testSyntaxDifferences() throws {
         let testString = "hello\nworld"
         
-        // Test default syntax behavior (currently Perl_NG based on the code)
-        let defaultRegex = try OnigRegex(pattern: "^world")
+        // Test default syntax behavior (Perl_NG)
+        let defaultRegex = try OnigRegex(pattern: "^world", options: .default, syntax: .perlNG)
         let defaultMatch = defaultRegex.search(in: testString)
-        XCTAssertNil(defaultMatch, "With default syntax, ^ should not match at line boundaries")
+        XCTAssertNil(defaultMatch, "With default syntax (Perl_NG), ^ should not match at line boundaries")
         
-        // Test with negateSingleline to enable line boundary matching
-        let multilineRegex = try OnigRegex(pattern: "^world", options: .negateSingleline)
-        let multilineMatch = multilineRegex.search(in: testString)
-        XCTAssertNotNil(multilineMatch, "With negateSingleline, ^ should match at line boundaries")
-        XCTAssertEqual(multilineMatch?.matchedString, "world")
+        // Test with Oniguruma syntax (Ruby-like)
+        let onigurumaRegex = try OnigRegex(pattern: "^world", options: .default, syntax: .oniguruma)
+        let onigurumaMatch = onigurumaRegex.search(in: testString)
+        XCTAssertNotNil(onigurumaMatch, "With Oniguruma syntax, ^ should match at line boundaries by default")
+        XCTAssertEqual(onigurumaMatch?.matchedString, "world")
         
-        // Test how multiline option affects dot (.)
+        // Test with Ruby syntax
+        let rubyRegex = try OnigRegex(pattern: "^world", options: .default, syntax: .ruby)
+        let rubyMatch = rubyRegex.search(in: testString)
+        XCTAssertNotNil(rubyMatch, "With Ruby syntax, ^ should match at line boundaries by default")
+        XCTAssertEqual(rubyMatch?.matchedString, "world")
+        
+        // Test with Perl_NG syntax and negateSingleline option
+        let perlMultilineRegex = try OnigRegex(pattern: "^world", options: .negateSingleline, syntax: .perlNG)
+        let perlMultilineMatch = perlMultilineRegex.search(in: testString)
+        XCTAssertNotNil(perlMultilineMatch, "With Perl_NG + negateSingleline, ^ should match at line boundaries")
+        XCTAssertEqual(perlMultilineMatch?.matchedString, "world")
+        
+        // Test how multiline option affects dot (.) across syntaxes
         let dotTestString = "hello\nworld"
         
-        // Default behavior - dot doesn't match newlines
-        let dotRegex1 = try OnigRegex(pattern: "hello.world")
-        let dotMatch1 = dotRegex1.search(in: dotTestString)
-        XCTAssertNil(dotMatch1, ". should not match newlines by default")
+        // Test with different syntaxes - dot behavior should be consistent
+        let perlDotRegex = try OnigRegex(pattern: "hello.world", options: .default, syntax: .perlNG)
+        let perlDotMatch = perlDotRegex.search(in: dotTestString)
+        XCTAssertNil(perlDotMatch, ". should not match newlines by default in Perl_NG")
+        
+        let rubyDotRegex = try OnigRegex(pattern: "hello.world", options: .default, syntax: .ruby)
+        let rubyDotMatch = rubyDotRegex.search(in: dotTestString)
+        XCTAssertNil(rubyDotMatch, ". should not match newlines by default in Ruby")
         
         // With multiline option - dot matches newlines
-        let dotRegex2 = try OnigRegex(pattern: "hello.world", options: .multiline)
-        let dotMatch2 = dotRegex2.search(in: dotTestString)
-        XCTAssertNotNil(dotMatch2, "With multiline option, . should match newlines")
-        XCTAssertEqual(dotMatch2?.matchedString, "hello\nworld")
+        let dotRegexMultiline = try OnigRegex(pattern: "hello.world", options: .multiline, syntax: .perlNG)
+        let dotMatchMultiline = dotRegexMultiline.search(in: dotTestString)
+        XCTAssertNotNil(dotMatchMultiline, "With multiline option, . should match newlines")
+        XCTAssertEqual(dotMatchMultiline?.matchedString, "hello\nworld")
         
-        // Test combining options
-        let combinedRegex = try OnigRegex(pattern: "^hello.world", options: [.negateSingleline, .multiline])
-        let combinedMatch = combinedRegex.search(in: "test\nhello\nworld")
-        XCTAssertNotNil(combinedMatch, "Combined options should work: ^ at line boundaries and . matches newlines")
-        XCTAssertEqual(combinedMatch?.matchedString, "hello\nworld")
+        // Test Python syntax
+        let pythonRegex = try OnigRegex(pattern: "\\bhello\\b", options: .default, syntax: .python)
+        let pythonMatch = pythonRegex.search(in: "hello world")
+        XCTAssertNotNil(pythonMatch, "Python syntax should support word boundaries")
+        
+        // Test POSIX Basic syntax
+        let posixBasicRegex = try OnigRegex(pattern: "hel\\{2\\}", options: .default, syntax: .posixBasic)
+        let posixBasicMatch = posixBasicRegex.search(in: "hello")
+        XCTAssertNotNil(posixBasicMatch, "POSIX Basic syntax should use escaped braces for repetition")
+        XCTAssertEqual(posixBasicMatch?.matchedString, "hell")
     }
     
     func testUnicodeString() throws {
-        let regex = try OnigRegex(pattern: "🚀")
+        let regex = try OnigRegex(pattern: "🚀", options: .default, syntax: .perlNG)
         let match = regex.search(in: "Hello 🚀 World")
         
         XCTAssertNotNil(match)
@@ -157,7 +178,7 @@ final class SwiftOnigurumaTests: XCTestCase {
     }
     
     func testComplexUnicodePattern() throws {
-        let regex = try OnigRegex(pattern: "[\\p{L}]+")
+        let regex = try OnigRegex(pattern: "[\\p{L}]+", options: .default, syntax: .perlNG)
         let match = regex.search(in: "Héllo wørld 123")
         
         XCTAssertNotNil(match)
@@ -165,7 +186,7 @@ final class SwiftOnigurumaTests: XCTestCase {
     }
     
     func testSearchWithRange() throws {
-        let regex = try OnigRegex(pattern: "world")
+        let regex = try OnigRegex(pattern: "world", options: .default, syntax: .perlNG)
         let string = "hello world, wonderful world"
         let startIndex = string.index(string.startIndex, offsetBy: 13)
         let endIndex = string.endIndex
@@ -182,14 +203,14 @@ final class SwiftOnigurumaTests: XCTestCase {
     
     func testErrorDescription() throws {
         do {
-            _ = try OnigRegex(pattern: "[")
+            _ = try OnigRegex(pattern: "[", options: .default, syntax: .perlNG)
         } catch let error as OnigError {
             XCTAssertFalse(error.localizedDescription.isEmpty)
         }
     }
     
     func testZeroLengthMatch() throws {
-        let regex = try OnigRegex(pattern: "(?=world)")
+        let regex = try OnigRegex(pattern: "(?=world)", options: .default, syntax: .perlNG)
         let match = regex.search(in: "hello world")
         
         // Should find a zero-length lookahead match
@@ -199,7 +220,7 @@ final class SwiftOnigurumaTests: XCTestCase {
     
     func testWordBoundaryMatches() throws {
         // Test word boundary pattern more carefully
-        let regex = try OnigRegex(pattern: "\\bhello\\b")
+        let regex = try OnigRegex(pattern: "\\bhello\\b", options: .default, syntax: .perlNG)
         let match = regex.search(in: "hello world")
         
         XCTAssertNotNil(match)
@@ -207,7 +228,7 @@ final class SwiftOnigurumaTests: XCTestCase {
     }
     
     func testPerformanceSimpleSearch() throws {
-        let regex = try OnigRegex(pattern: "\\w+")
+        let regex = try OnigRegex(pattern: "\\w+", options: .default, syntax: .perlNG)
         let text = String(repeating: "hello world ", count: 1000)
         
         measure {
@@ -218,7 +239,7 @@ final class SwiftOnigurumaTests: XCTestCase {
     func testPerformancePatternCompilation() {
         measure {
             do {
-                _ = try OnigRegex(pattern: "(?i)(?:hello|world|foo|bar)+")
+                _ = try OnigRegex(pattern: "(?i)(?:hello|world|foo|bar)+", options: .default, syntax: .perlNG)
             } catch {
                 XCTFail("Pattern compilation failed: \(error)")
             }
