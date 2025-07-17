@@ -4,7 +4,7 @@ import Oniguruma
 public class OnigRegex {
     private var regex: Oniguruma.OnigRegex?
     
-    public init(pattern: String, options: OnigOptionType = ONIG_OPTION_DEFAULT, syntax: UnsafeMutablePointer<OnigSyntaxType>? = nil) throws {
+    public init(pattern: String, options: OnigOptions = .default, syntax: UnsafeMutablePointer<OnigSyntaxType>? = nil) throws {
         var reg: Oniguruma.OnigRegex?
         var errorInfo = OnigErrorInfo()
         
@@ -13,12 +13,12 @@ public class OnigRegex {
         if let syntax = syntax {
             result = patternBytes.withUnsafeBufferPointer { buffer in
                 onig_new(&reg, buffer.baseAddress!, buffer.baseAddress! + buffer.count,
-                         options, &OnigEncodingUTF8, syntax, &errorInfo)
+                         options.rawValue, &OnigEncodingUTF8, syntax, &errorInfo)
             }
         } else {
             result = patternBytes.withUnsafeBufferPointer { buffer in
                 onig_new(&reg, buffer.baseAddress!, buffer.baseAddress! + buffer.count,
-                         options, &OnigEncodingUTF8, &OnigSyntaxPerl_NG, &errorInfo)
+                         options.rawValue, &OnigEncodingUTF8, &OnigSyntaxPerl_NG, &errorInfo)
             }
         }
         
@@ -27,6 +27,11 @@ public class OnigRegex {
         }
         
         self.regex = reg
+    }
+    
+    /// Convenience initializer that accepts raw OnigOptionType for backward compatibility
+    public convenience init(pattern: String, options: OnigOptionType, syntax: UnsafeMutablePointer<OnigSyntaxType>? = nil) throws {
+        try self.init(pattern: pattern, options: OnigOptions(rawValue: options), syntax: syntax)
     }
     
     deinit {
@@ -240,11 +245,85 @@ public struct OnigError: Error {
     }
 }
 
-public extension OnigOptionType {
-    static let ignoreCase = ONIG_OPTION_IGNORECASE
-    static let extend = ONIG_OPTION_EXTEND
-    static let multiline = ONIG_OPTION_MULTILINE
-    static let singleline = ONIG_OPTION_SINGLELINE
-    static let findLongest = ONIG_OPTION_FIND_LONGEST
-    static let findNotEmpty = ONIG_OPTION_FIND_NOT_EMPTY
+/// Options for regex compilation
+public struct OnigOptions: OptionSet {
+    public let rawValue: OnigOptionType
+    
+    public init(rawValue: OnigOptionType) {
+        self.rawValue = rawValue
+    }
+    
+    /// Default options (none)
+    public static let none = OnigOptions(rawValue: ONIG_OPTION_NONE)
+    
+    /// Default options (same as none)
+    public static let `default` = OnigOptions(rawValue: ONIG_OPTION_DEFAULT)
+    
+    // MARK: - Basic Options
+    
+    /// Case insensitive matching
+    public static let ignoreCase = OnigOptions(rawValue: ONIG_OPTION_IGNORECASE)
+    
+    /// Extended pattern form (ignore whitespace and comments)
+    public static let extend = OnigOptions(rawValue: ONIG_OPTION_EXTEND)
+    
+    /// '.' matches newline (commonly called "dotall" or "singleline" in other engines)
+    public static let multiline = OnigOptions(rawValue: ONIG_OPTION_MULTILINE)
+    
+    /// '^' and '$' match only string boundaries (not line boundaries)
+    public static let singleline = OnigOptions(rawValue: ONIG_OPTION_SINGLELINE)
+    
+    /// Find longest match
+    public static let findLongest = OnigOptions(rawValue: ONIG_OPTION_FIND_LONGEST)
+    
+    /// Ignore empty matches
+    public static let findNotEmpty = OnigOptions(rawValue: ONIG_OPTION_FIND_NOT_EMPTY)
+    
+    /// Clear SINGLELINE option (for POSIX_BASIC, POSIX_EXTENDED, PERL, etc.)
+    public static let negateSingleline = OnigOptions(rawValue: ONIG_OPTION_NEGATE_SINGLELINE)
+    
+    // MARK: - Capture Options
+    
+    /// Only named capture groups
+    public static let dontCaptureGroup = OnigOptions(rawValue: ONIG_OPTION_DONT_CAPTURE_GROUP)
+    
+    /// Capture unnamed groups as well
+    public static let captureGroup = OnigOptions(rawValue: ONIG_OPTION_CAPTURE_GROUP)
+    
+    // MARK: - ASCII-only Options
+    
+    /// IGNORECASE restricted to ASCII characters
+    public static let ignoreCaseIsASCII = OnigOptions(rawValue: ONIG_OPTION_IGNORECASE_IS_ASCII)
+    
+    /// Word characters (\w, \p{Word}, [[:word:]]) are ASCII only
+    public static let wordIsASCII = OnigOptions(rawValue: ONIG_OPTION_WORD_IS_ASCII)
+    
+    /// Digit characters (\d, \p{Digit}, [[:digit:]]) are ASCII only
+    public static let digitIsASCII = OnigOptions(rawValue: ONIG_OPTION_DIGIT_IS_ASCII)
+    
+    /// Space characters (\s, \p{Space}, [[:space:]]) are ASCII only
+    public static let spaceIsASCII = OnigOptions(rawValue: ONIG_OPTION_SPACE_IS_ASCII)
+    
+    /// POSIX properties are ASCII only
+    public static let posixIsASCII = OnigOptions(rawValue: ONIG_OPTION_POSIX_IS_ASCII)
+    
+    // MARK: - Text Segment Options
+    
+    /// Extended grapheme cluster mode
+    public static let textSegmentExtendedGraphemeCluster = OnigOptions(rawValue: ONIG_OPTION_TEXT_SEGMENT_EXTENDED_GRAPHEME_CLUSTER)
+    
+    /// Word mode
+    public static let textSegmentWord = OnigOptions(rawValue: ONIG_OPTION_TEXT_SEGMENT_WORD)
+    
+    // MARK: - Advanced Options
+    
+    /// Check validity of input string
+    public static let checkValidityOfString = OnigOptions(rawValue: ONIG_OPTION_CHECK_VALIDITY_OF_STRING)
+    
+    /// Callback for each match
+    public static let callbackEachMatch = OnigOptions(rawValue: ONIG_OPTION_CALLBACK_EACH_MATCH)
+    
+    /// Match must consume the entire string
+    public static let matchWholeString = OnigOptions(rawValue: ONIG_OPTION_MATCH_WHOLE_STRING)
 }
+

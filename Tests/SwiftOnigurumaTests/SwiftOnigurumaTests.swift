@@ -95,11 +95,57 @@ final class SwiftOnigurumaTests: XCTestCase {
     }
     
     func testMultilineOption() throws {
-        let regex = try OnigRegex(pattern: "^world", options: .multiline)
-        let match = regex.search(in: "hello\nworld")
+        // In Perl_NG syntax with singleline mode (default), ^ and $ only match string boundaries
+        // Need to negate singleline to make ^ and $ match line boundaries
+        let regex1 = try OnigRegex(pattern: "^world", options: .negateSingleline)
+        let match1 = regex1.search(in: "hello\nworld")
+        XCTAssertNotNil(match1, "^ should match line boundaries when singleline is negated")
+        XCTAssertEqual(match1?.matchedString, "world")
         
-        XCTAssertNotNil(match)
-        XCTAssertEqual(match?.matchedString, "world")
+        // Test what multiline actually does - make . match newlines
+        let regex2 = try OnigRegex(pattern: "hello.world")
+        let match2 = regex2.search(in: "hello\nworld")
+        XCTAssertNil(match2, ". should not match newlines by default")
+        
+        let regex3 = try OnigRegex(pattern: "hello.world", options: .multiline)
+        let match3 = regex3.search(in: "hello\nworld")
+        XCTAssertNotNil(match3, ". should match newlines with multiline option")
+        XCTAssertEqual(match3?.matchedString, "hello\nworld")
+    }
+    
+    func testSyntaxDifferences() throws {
+        let testString = "hello\nworld"
+        
+        // Test default syntax behavior (currently Perl_NG based on the code)
+        let defaultRegex = try OnigRegex(pattern: "^world")
+        let defaultMatch = defaultRegex.search(in: testString)
+        XCTAssertNil(defaultMatch, "With default syntax, ^ should not match at line boundaries")
+        
+        // Test with negateSingleline to enable line boundary matching
+        let multilineRegex = try OnigRegex(pattern: "^world", options: .negateSingleline)
+        let multilineMatch = multilineRegex.search(in: testString)
+        XCTAssertNotNil(multilineMatch, "With negateSingleline, ^ should match at line boundaries")
+        XCTAssertEqual(multilineMatch?.matchedString, "world")
+        
+        // Test how multiline option affects dot (.)
+        let dotTestString = "hello\nworld"
+        
+        // Default behavior - dot doesn't match newlines
+        let dotRegex1 = try OnigRegex(pattern: "hello.world")
+        let dotMatch1 = dotRegex1.search(in: dotTestString)
+        XCTAssertNil(dotMatch1, ". should not match newlines by default")
+        
+        // With multiline option - dot matches newlines
+        let dotRegex2 = try OnigRegex(pattern: "hello.world", options: .multiline)
+        let dotMatch2 = dotRegex2.search(in: dotTestString)
+        XCTAssertNotNil(dotMatch2, "With multiline option, . should match newlines")
+        XCTAssertEqual(dotMatch2?.matchedString, "hello\nworld")
+        
+        // Test combining options
+        let combinedRegex = try OnigRegex(pattern: "^hello.world", options: [.negateSingleline, .multiline])
+        let combinedMatch = combinedRegex.search(in: "test\nhello\nworld")
+        XCTAssertNotNil(combinedMatch, "Combined options should work: ^ at line boundaries and . matches newlines")
+        XCTAssertEqual(combinedMatch?.matchedString, "hello\nworld")
     }
     
     func testUnicodeString() throws {
